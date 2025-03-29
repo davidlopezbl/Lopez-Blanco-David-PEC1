@@ -146,7 +146,7 @@ Una vez se conoce la estructura general de los datos, se osberva como en la prim
 Por otro lado, de la columna 3 a la 65 hay recogidos valores de concentración de 63 metabolitos en orina.\
 Para poder entender mejor los datos, se propone visualizar los valores del dataset con gráficos de densidad y boxplot de los valores.
 ```{r}
-# Reesstructuración de los datos de su visualización
+# Reestructuración de los datos de su visualización
 cachexia_melted <- cachexia |> 
   pivot_longer(
     cols = 3:65,
@@ -156,18 +156,18 @@ cachexia_melted <- cachexia |>
   select(Patient.ID, Muscle.loss, Metabolito, Concentración)
 
 # Top 10 metabolitos más variables
-top_metabolitos <- cachexia_melted %>%
-  group_by(Metabolito) %>%
-  summarise(variance = var(Concentración, na.rm = TRUE)) %>%
-  slice_max(variance, n = 10) %>%
+top_metabolitos <- cachexia_melted |>
+  group_by(Metabolito) |>
+  summarise(variance = var(Concentración, na.rm = TRUE)) |>
+  slice_max(variance, n = 10) |>
   pull(Metabolito)
 
 # Gráfico densidad de este top de metabolitos
-cachexia_melted %>%
-  filter(Metabolito %in% top_metabolitos) %>%
+cachexia_melted |>
+  filter(Metabolito %in% top_metabolitos) |>
   ggplot(aes(Concentración)) +
   geom_density(fill = "steelblue", alpha = 0.5) +
-  facet_wrap(~Metabolito, scales = "free", ncol = 2) +  # 2-column layout
+  facet_wrap(~Metabolito, scales = "free", ncol = 2) +
   theme_minimal() +
   labs(title = "Top 10 Most Variable Metabolites")
 
@@ -186,7 +186,7 @@ Otro estudio interesante que se puede hacer de estos datos es conocer y calcular
 Finalmente, para comprender mejor las diferencias entre grupos se puede hacer un boxplot comparativo para cada aminoácido. También puede ser interesante hacer un PCA de los datos para entender mejor la clasificaciones a partir de los datos experimentales.
 ```{r}
 # Comparación concentración de metabolitos entre niveles
-ggplot(cachexia_melted %>% 
+ggplot(cachexia_melted |>
          filter(Metabolito %in% top_metabolitos),
        aes(x = Muscle.loss, y = Concentración, fill = Muscle.loss)) +
   geom_boxplot(width = 0.6, outlier.size = 1) +
@@ -213,7 +213,7 @@ pca_data <- data.frame(
 # Cálculo de la variancia
 var_explained <- round(100 * pca_resultados$sdev^2 / sum(pca_resultados$sdev^2), 1)
 
-# Create the plot
+# Generación del gráfico
 ggplot(pca_data, aes(PC1, PC2, color = Muscle.loss)) +
   geom_point(size = 3) + 
   ggrepel::geom_text_repel(
