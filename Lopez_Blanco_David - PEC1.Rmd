@@ -3,12 +3,12 @@ title: 'Análisis de Datos Ómicos - PEC 1'
 author: "David López Blanco"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output:
-  html_document:
-    toc: yes
   pdf_document:
     latex_engine: xelatex
     toc: yes
     citation_package: natbib
+  html_document:
+    toc: yes
 bibliography: bibliography.bib
 ---
 
