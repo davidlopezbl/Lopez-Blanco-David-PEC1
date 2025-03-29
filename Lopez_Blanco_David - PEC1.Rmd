@@ -16,7 +16,7 @@ bibliography: bibliography.bib
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = NULL)
 ```
-GitHub Repository: https://github.com/davidlopezbl/Lopez-Blanco-David-PEC1
+Repositorio de GitHub: https://github.com/davidlopezbl/Lopez-Blanco-David-PEC1
 ```{r load_libraries, include=FALSE}
 require(SummarizedExperiment)
 require(tidyverse)
