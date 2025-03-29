@@ -3,12 +3,12 @@ title: 'Análisis de Datos Ómicos - PEC 1'
 author: "David López Blanco"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output:
+  html_document:
+    toc: yes
   pdf_document:
     latex_engine: xelatex
     toc: yes
     citation_package: natbib
-  html_document:
-    toc: yes
 bibliography: bibliography.bib
 ---
 
@@ -130,9 +130,10 @@ La primera parte de este análisis exploratorio consite en entender la estructur
 dim(cachexia)  
 
 # Variables del dataset
-colnames(cachexia) %>% 
-  paste(collapse = ", ") %>% 
-  cat()
+colnames(cachexia) |>
+  paste(collapse = ", ") |> 
+  strwrap(width = 80) |>
+  cat(sep = "\n")
 
 # Contaje pacientes de cada estado de "Muscle.loss"
 table(cachexia[[2]])
