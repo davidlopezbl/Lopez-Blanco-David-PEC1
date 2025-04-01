@@ -17,16 +17,17 @@ bibliography: bibliography.bib
 knitr::opts_chunk$set(echo = TRUE, comment = NULL)
 ```
 Repositorio de GitHub: https://github.com/davidlopezbl/Lopez-Blanco-David-PEC1
-```{r load_libraries, include=FALSE}
+```{r cargar-librerías, include=FALSE}
 require(SummarizedExperiment)
 require(tidyverse)
 require(ggplot2)
 require(reshape2)
 require(ggrepel)
 require(dplyr)
+require(pheatmap)
 ```
 
-```{r asignaciones, include=FALSE}
+```{r asignaciones, echo=FALSE}
 # Nombre de los archivos
 cachexia <- "human_cachexia.csv"
 ```
@@ -79,7 +80,7 @@ cachexia <- read.csv("human_cachexia.csv", sep=",")
 
 ### Ejercicio 2
 **2. Cread un objeto de clase `SummarizedExperiment` que contenga los datos y los metadatos (información acerca del dataset, sus filas y columnas). La clase `SummarizedExperiment` es una extensión de ExpressionSet, utilizada por muchas aplicaciones y bases de datos (como es el caso de `metabolomicsWorkbench`). ¿Cuáles son sus principales diferencias con la clase `ExpressionSet`?**\
-```{r}
+```{r cargar-datos}
 # Assays (Datos experimentales)
 assay_data <- as.matrix(cachexia[, 3:65])
 rownames(assay_data) <- cachexia[, 1]
@@ -125,7 +126,7 @@ Si bien `ExpressionSet` sigue siendo adecuado para análisis sencillos de tipo m
 **3. Llevad a cabo un análisis exploratorio que os proporcione una visión general del dataset en la línea de lo que hemos visto en las actividades de este reto.**\
 La primera parte de este análisis exploratorio consite en entender la estructura del dataset de estudio, incluyendo la dimensión de este, así como las variables recogidas. También es interesante conocer si falta algún valor (missing). Otra forma de tener una idea general/exploratoria de los datos es mostrar la cabecera de los datos (`head(cachexia)`), pero no se realiza en este estudio porque simplemente resultaría en un volcado de los datos.
 
-```{r}
+```{r analisis-exploratorio-1}
 # Dimensión dataset
 dim(cachexia)  
 
@@ -144,8 +145,8 @@ cat("Metabolitos con missing values:", contaje_missing, "/", ncol(cachexia[, 3:6
 ```
 Una vez se conoce la estructura general de los datos, se osberva como en la primera columna está el ID de los 77 pacientes y en la segunda está el factor `Muscle.loss`, el cual nos informa del estado del paciente (caquexia o no). Tal y como indica la descripción del dataset, este dataset incluye 47 pacientes caquéxicos y 30 pacientes control.\
 Por otro lado, de la columna 3 a la 65 hay recogidos valores de concentración de 63 metabolitos en orina.\
-Para poder entender mejor los datos, se propone visualizar los valores del dataset con gráficos de densidad y boxplot de los valores.
-```{r}
+Para poder entender mejor los datos, se propone visualizar los valores del dataset con gráficos de densidad y boxplot de los valores.\
+```{r analisis-exploratorio-2, echo=FALSE}
 # Reestructuración de los datos de su visualización
 cachexia_melted <- cachexia |> 
   pivot_longer(
@@ -163,30 +164,70 @@ top_metabolitos <- cachexia_melted |>
   pull(Metabolito)
 
 # Gráfico densidad de este top de metabolitos
-cachexia_melted |>
+plot1<- cachexia_melted |>
   filter(Metabolito %in% top_metabolitos) |>
   ggplot(aes(Concentración)) +
   geom_density(fill = "steelblue", alpha = 0.5) +
   facet_wrap(~Metabolito, scales = "free", ncol = 2) +
   theme_minimal() +
-  labs(title = "Top 10 Most Variable Metabolites")
+  labs(title = "Gráfico densidad del top 10 metabolitos más")
 
 
 # Boxplots (escala logarítmica)
-ggplot(cachexia_melted, aes(x = Metabolito, y = Concentración)) +
-  geom_boxplot() +
+plot2 <- ggplot(cachexia_melted, aes(x = Metabolito, y = Concentración)) +
+  geom_boxplot(linewidth = 0.3) +
   scale_y_log10() +
-  theme(axis.text.x = element_text(angle = 90)) +
+  theme(
+    axis.text.x = element_text(angle = 90, size = 6, hjust = 1, vjust = 0.5),
+    axis.text.y = element_text(size = 6),
+    plot.title = element_text(size = 12),
+    panel.grid.minor = element_blank()
+  ) +
   labs(title = "Concentración de Metabolito (escala logarítmica)")
 
+# Muestra en informe
+par(mfrow = c(2, 1))  
+plot1
+plot2
 ```
-Otro estudio interesante que se puede hacer de estos datos es conocer y calcular la correlación entre los diferentes metabolitos. Esto nos ayuda a conocer mejor si hay posibles dependencias entre las diferentes medidas. Aunque no se muestra el resultado en este informe, esto se puede realizar usando la función `cor` con *pairwise.complete.obs* y después representarlo usando `heatmap`.
+\
+Otro estudio interesante que se puede hacer de estos datos es conocer y calcular la correlación entre los diferentes metabolitos. Esto nos ayuda a conocer mejor si hay posibles dependencias entre las diferentes medidas. Aunque no se muestra el resultado en este informe, esto se puede realizar usando la función `cor_matrix` con *pairwise.complete.obs* y después representarlo usando `pheatmap`.\
+Para comprender mejor las diferencias entre grupos se ha hecho un boxplot comparativo para cada aminoácido. Aunque, a simple vista, no está muy claro si realmente hay diferencias de concetración en los metabolitos representado (los 10 más variables), sería ideal seguir esta representación con un estudio estadísitco (no se realiza en este informe).\
+```{r analisis-exploratorio-3, echo=FALSE}
+# Selección top 20 metabolitos más variables
+top_20 <- cachexia_melted |>
+  group_by(Metabolito) |>
+  summarise(variance = var(Concentración, na.rm = TRUE)) |>
+  slice_max(variance, n = 20) |>
+  pull(Metabolito)
 
+# Subset de estos 20 metabolitos
+cachexia_top20 <- cachexia |>
+  select(Patient.ID, Muscle.loss, all_of(top_20))
 
-Finalmente, para comprender mejor las diferencias entre grupos se puede hacer un boxplot comparativo para cada aminoácido. También puede ser interesante hacer un PCA de los datos para entender mejor la clasificaciones a partir de los datos experimentales.
-```{r}
+# Cálculo matriz de correlación
+cor_matrix_top20 <- cachexia_top20 |>
+  select(-Patient.ID, -Muscle.loss) |>
+  cor(use = "pairwise.complete.obs")
+
+# Representación datos en heatmap
+pheatmap(
+  cor_matrix_top20,
+  color = colorRampPalette(c("blue", "white", "red"))(100),
+  main = "Correlación (Top 20 metabolitos más variables)",
+  fontsize_row = 6,
+  fontsize_col = 6,
+  angle_col = 45,
+  clustering_method = "complete", 
+  cellwidth = 10,
+  cellheight = 10,
+  border_color = NA
+)
+```
+
+```{r analisis-exploratorio-4, echo=FALSE}
 # Comparación concentración de metabolitos entre niveles
-ggplot(cachexia_melted |>
+plot4 <- ggplot(cachexia_melted |>
          filter(Metabolito %in% top_metabolitos),
        aes(x = Muscle.loss, y = Concentración, fill = Muscle.loss)) +
   geom_boxplot(width = 0.6, outlier.size = 1) +
@@ -214,22 +255,27 @@ pca_data <- data.frame(
 var_explained <- round(100 * pca_resultados$sdev^2 / sum(pca_resultados$sdev^2), 1)
 
 # Generación del gráfico
-ggplot(pca_data, aes(PC1, PC2, color = Muscle.loss)) +
+plot5 <- ggplot(pca_data, aes(PC1, PC2, color = Muscle.loss)) +
   geom_point(size = 3) + 
   ggrepel::geom_text_repel(
     data = subset(pca_data, abs(scale(PC1)) > 2.5),
     aes(label = Patient.ID), color = "black", size = 3
   ) +
   stat_ellipse() +
-  labs(
+  labs(title = "PCA del dataset cachexia",
     x = paste("PC1 (", var_explained[1], "%)"),
     y = paste("PC2 (", var_explained[2], "%)"),
-    title = "PCA"
   ) +
   scale_color_brewer(palette = "Set1") +
   theme_minimal()
+
+# Representación en informe
+par(mfrow = c(2, 1))
+plot4
+plot5
 ```
-Al hacer el PCA de los datos se observa como no hay una muy buena separación de estos. Esto podría ser al hecho de que se osberva que hay un par de valores que podrían considerarse outliers que sería interesante eliminar (si realmetne lo son), y entonces volver a representar. No obstante, como se está realizando un estudio exploratorio esto no se realizará.
+\
+Finalmente, se conluye este análisis exploratorio con un PCA de los datos para entender mejor la clasificaciones a partir de los datos experimentales. Al hacer el PCA de los datos se observa como no hay una muy buena separación de estos. Esto podría ser al hecho de que se osberva que hay un par de valores que podrían considerarse outliers que sería interesante eliminar (si realmetne lo son), y entonces volver a representar. No obstante, como se está realizando un estudio exploratorio esto no se realizará.
 
 ## Discusión
 El análisis realizado ha permitido aplicar herramientas bioinformáticas para la exploración de datos metabolómicos en el contexto de la caquexia. A través de la construcción de un objeto `SummarizedExperiment` y el análisis exploratorio de los datos, se han abordado algunas de las metodologías y herramientas bioinformáticas que resultan esenciales para entender las complejidades de este síndrome. No obstante, cabe destacar algunas de las limitaciones del trabajo y su relevanica para el estudio de la enfermedad estudiada con este dataset, la caquexia.
@@ -254,7 +300,7 @@ Entre algunas de las posibles mejoras o futuras direcciones para estudios poster
 En resumen, este estudio ha proporcionado una introducción valiosa a las herramientas bioinformáticas y estadísticas para el análisis de datos metabolómicos en caquexia. Si bien las limitaciones mencionadas deben ser consideradas, el trabajo realizado sienta las bases para investigaciones más profundas y sofisticadas que podrían contribuir al desarrollo de nuevos biomarcadores y tratamientos para la caquexia. A medida que los métodos de análisis y las tecnologías ómicas continúan avanzando, se espera que los estudios en esta área puedan proporcionar información crucial para el manejo de esta condición debilitante.  
 
 
-# Referencias
+## Referencias
 
 ::: {#refs}
 :::
